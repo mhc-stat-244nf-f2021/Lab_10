@@ -1,0 +1,280 @@
+---
+title: 'Lab 10: Vaccine Effects in Age Dependent Models'
+subtitle: "STAT 244NF: Infectious Disease Modeling"
+author: "YOUR NAME HERE"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(reshape2)
+library(ggplot2)
+library(dplyr)
+library(numbers)
+
+```
+
+In our last class, we were exploring an age-dependent compartmental model formulation, in which we incorporated vaccination for newborns. In this lab, we will examine functions that implement deterministic and stochastic versions of this model. 
+
+## Deterministic Age Dependent Model with Newborn Vaccinations (Schenzle)
+
+```{r}
+SEIR_age_simulation <- function(S0, E0, I0, R0, RN, pD, D, b, v, 
+                                maxAge, time, time_scale){
+  S <- matrix(nrow=(time+1), ncol=(maxAge+1))
+  E <- matrix(nrow=(time+1), ncol=(maxAge+1))
+  I <- matrix(nrow=(time+1), ncol=(maxAge+1))
+  R <- matrix(nrow=(time+1), ncol=(maxAge+1))
+  N <- rep(NA, time+1)
+  lambda <- rep(NA, time+1)
+  
+  ## Initialize
+  S[1,] <- S0 ## now a vector
+  E[1,] <- E0 ## now a vector
+  I[1,] <- I0 ## now a vector
+  R[1,] <- R0 ## now a vector
+  
+  for (i in 2:(time+1)){
+    N[i-1] <- sum(c(S[i-1,],E[i-1,],I[i-1,],R[i-1,]))
+    lambda[i] <- 1-exp(-RN/D*sum(I[i-1,])/N[i-1])
+    if (mod(n=i, m=52)!=0){
+      S[i,] <- S[i-1,]-lambda[i]*S[i-1,]
+      E[i,] <- E[i-1,]+lambda[i]*S[i-1,]-(1/pD)*E[i-1,]
+      I[i,] <- I[i-1,]+(1/pD)*E[i-1,]-(1/D)*I[i-1,]
+      R[i,] <- R[i-1,]+(1/D)*I[i-1,]
+    }
+    else{
+      ## Moving everyone up by one year (in age)
+      S[i,2:(maxAge+1)] <- S[i-1,1:maxAge]-lambda[i]*S[i-1,1:maxAge]
+      E[i,2:(maxAge+1)] <- E[i-1,1:maxAge]+lambda[i]*S[i-1,1:maxAge]-(1/pD)*E[i-1,1:maxAge]
+      I[i,2:(maxAge+1)] <- I[i-1,1:maxAge]+(1/pD)*E[i-1,1:maxAge]-(1/D)*I[i-1,1:maxAge]
+      R[i,2:(maxAge+1)] <- R[i-1,1:maxAge]+(1/D)*I[i-1,1:maxAge]
+      ## births
+      S[i,1] <- (b*N[i-1])*(1-v)
+      E[i,1] <- 0
+      I[i,1] <- 0
+      R[i,1] <- (b*N[i-1])*v
+    }
+  }
+    ## Convert to data frame
+  S <- as.data.frame(S)
+  E <- as.data.frame(E)
+  I <- as.data.frame(I)
+  R <- as.data.frame(R)
+  
+  ## Add column names to keep track of ages
+  names(S) <- c(paste("Age", 0:maxAge))
+  names(E) <- c(paste("Age", 0:maxAge))
+  names(I) <- c(paste("Age", 0:maxAge))
+  names(R) <- c(paste("Age", 0:maxAge))
+  
+  ## Add time and compartment columns (for reformatting)
+  S <- S %>%
+    mutate(
+      Time=0:time,
+      compartment=rep("S",time+1)
+    )
+  E <- E %>%
+    mutate(
+      Time=0:time,
+      compartment=rep("E",time+1)
+    )
+  I <- I %>%
+    mutate(
+      Time=0:time,
+      compartment=rep("I",time+1)
+    )
+  R <- R %>%
+    mutate(
+      Time=0:time,
+      compartment=rep("R",time+1)
+    )
+  
+  ## rbind columns for formatting
+  df <- rbind(S,E,I,R)
+  
+  ## use melt to reformat into desired structure
+  df_m <- melt(df, id.vars=c("Time", "compartment"),
+               variable.name="age",
+               value.name="count",
+               factorsAsStrings=FALSE)
+  df_m$Year <- floor(df_m$Time/time_scale)
+  if(time_scale==52){
+    df_m$Week <- mod(df_m$Time, 52)+1
+  }
+  if(time_scale==365){
+    df_m$Day <- mod(df_m$Time, 365)+1
+  }
+
+  ## return reformatted data frame
+  return(df_m)
+}
+```
+
+Before we dive implement this function and play with visualization, we need to consider what initial values we should consider. For example, as we saw in class, all of the initial compartment counts need to be specified in terms of vectors, which will give the numbers at the start of people in each compartment *of each age*, which is an extra layer of complexity from what we considered before. In order to come up with reasonable numbers, we can look up age demographics (from a census or other reliable source of information) about the area we are studying. For example, if we were interested in Massachusetts for some reason, we could look at: https://www.statista.com/statistics/1022328/massachusetts-population-share-age-group/ to get some information about age demographics.
+
+**Do you have any ideas about how we can translate this information into something meaningful in terms of initial values? We will take some time to think about this in small groups, and then we will implement any viable ideas together.**
+
+```{r}
+
+```
+
+**How would you go about determining the argument for maxAge? You can answer this either generally, or if you would like to consider a specific population, consider Massachusetts again.**
+
+
+**Run the function for the deterministic simulation, assuming the following: S0 is determined using one of our ideas above, E0 is a vector of 0's that is of length maxAge+1 (to account for newborns), I0 is a vector with a single 1 in it, and the rest are 0's (the placement is not that important given that we have homogeneous mixing in this model), time is 1500 (days), time_scale is 365 (we will run the simulation in terms of days). Also, assume a reproductive number of 7, a pre-infectious period of 6, an infectious period of 5 (days), and a vaccination rate of 30%. Assign this to the name `deterministic_sim_v30`.**
+
+```{r}
+
+```
+
+**Before making any plots, run `head(deterministic_sim1)`. What is the structure of the data frame that is returned? Make sure you have a general understanding of what parts of the code are responsible for changing the output from four matrices to a single data frame.**
+
+
+
+**Now we need to think about visualizing our results, which is going to be more involved than in our previous simulations. On paper, sketch out some ideas of what some reasonable plots might look like. Keep in mind that you have to visualize the changes in the population (due to vaccination) over time for each age group. Also remember we have multiple compartments to visualize, and multiple years. We will come up with a couple of plans as a class and then think about how to implement them together.**
+
+
+
+**Implement one or more of the visualization plans that we discussed as a class.**
+
+```{r}
+
+```
+
+
+**How do the results change if the vaccination rate is higher? Lower? Name all your additional simulations `deterministic_sim_vX`, replacing X with the percentage vaccinated. Plot results to compare.**
+
+```{r}
+
+```
+
+## Stochastic Age Dependent Model with Newborn Vaccinations (stochastic adaptaion of Schenzle)
+
+```{r}
+SEIR_age_simulation_stoch <- function(S0, E0, I0, R0, RN, pD, D, b, v, 
+                                      maxAge, time, time_scale, seed){
+  set.seed(seed)
+  S <- matrix(nrow=(time+1), ncol=(maxAge+1))
+  E <- matrix(nrow=(time+1), ncol=(maxAge+1))
+  I <- matrix(nrow=(time+1), ncol=(maxAge+1))
+  R <- matrix(nrow=(time+1), ncol=(maxAge+1))
+  
+  E_SE <- matrix(nrow=time, ncol=(maxAge+1))
+  I_EI <- matrix(nrow=time, ncol=(maxAge+1))
+  R_IR <- matrix(nrow=time, ncol=(maxAge+1))
+  
+  B <- rep(NA, time)
+  N <- rep(NA, time+1)
+  lambda <- rep(NA, time+1)
+  
+  times_vec=rep(1,maxAge+1) ##for multiple draws in rbinom
+  
+  ## Initialize
+  S[1,] <- S0 ## now a vector
+  E[1,] <- E0 ## now a vector
+  I[1,] <- I0 ## now a vector
+  R[1,] <- R0 ## now a vector
+  
+  for (i in 2:(time+1)){
+    N[i-1] <- sum(c(S[i-1,],E[i-1,],I[i-1,],R[i-1,]))
+    lambda[i] <- 1-exp(-RN/D*sum(I[i-1,])/N[i-1])
+    E_SE[i-1,] <- rbinom(n=times_vec, size=S[i-1,], prob=lambda[i])
+    I_EI[i-1,] <- rbinom(n=times_vec, size=E[i-1,], prob=1/pD)
+    R_IR[i-1,] <- rbinom(n=times_vec, size=I[i-1,], prob=1/D)
+    if(any(is.na(E_SE[i-1,])) | any(is.na(I_EI[i-1,])) | any(is.na(R_IR[i-1,]))){
+       print(i)
+    }
+    
+    if (mod(n=i, m=time_scale)!=0){ #time_scale=52 if weeks, 365 if days
+      S[i,] <- S[i-1,]-E_SE[i-1,]
+      E[i,] <- E[i-1,]+E_SE[i-1,]-I_EI[i-1,]
+      I[i,] <- I[i-1,]+I_EI[i-1,]-R_IR[i-1,]
+      R[i,] <- R[i-1,]+R_IR[i-1,]
+    }
+    else{
+      ## Moving everyone up by one year (in age)
+      S[i,2:(maxAge+1)] <- S[i-1,1:maxAge]-E_SE[i-1,1:maxAge]
+      E[i,2:(maxAge+1)] <- E[i-1,1:maxAge]+E_SE[i-1,1:maxAge]-I_EI[i-1,1:maxAge]
+      I[i,2:(maxAge+1)] <- I[i-1,1:maxAge]+I_EI[i-1,1:maxAge]-R_IR[i-1,1:maxAge]
+      R[i,2:(maxAge+1)] <- R[i-1,1:maxAge]+R_IR[i-1,1:maxAge]
+      ## births
+      B[i] <- rbinom(n=1, size=N[i-1], prob=b)
+      S[i,1] <- rbinom(n=1, size=B[i], prob=1-v)
+      E[i,1] <- 0
+      I[i,1] <- 0
+      R[i,1] <- B[i]-S[i,1]
+    }
+  }
+  
+  ## Convert to data frame
+  S <- as.data.frame(S)
+  E <- as.data.frame(E)
+  I <- as.data.frame(I)
+  R <- as.data.frame(R)
+  
+  ## Add column names to keep track of ages
+  names(S) <- c(paste("Age", 0:maxAge))
+  names(E) <- c(paste("Age", 0:maxAge))
+  names(I) <- c(paste("Age", 0:maxAge))
+  names(R) <- c(paste("Age", 0:maxAge))
+  
+  ## Add time and compartment columns (for reformatting)
+  S <- S %>%
+    mutate(
+      Time=0:time,
+      compartment=rep("S",time+1)
+    )
+  E <- E %>%
+    mutate(
+      Time=0:time,
+      compartment=rep("E",time+1)
+    )
+  I <- I %>%
+    mutate(
+      Time=0:time,
+      compartment=rep("I",time+1)
+    )
+  R <- R %>%
+    mutate(
+      Time=0:time,
+      compartment=rep("R",time+1)
+    )
+  
+  ## rbind columns for formatting
+  df <- rbind(S,E,I,R)
+  
+  ## use melt to reformat into desired structure
+  df_m <- melt(df, id.vars=c("Time", "compartment"),
+               variable.name="age",
+               value.name="count",
+               factorsAsStrings=FALSE)
+  df_m$Year <- floor(df_m$Time/time_scale)
+  if(time_scale==52){
+    df_m$Week <- mod(df_m$Time, 52)+1
+  }
+  if(time_scale==365){
+    df_m$Day <- mod(df_m$Time, 365)+1
+  }
+
+  ## return reformatted data frame
+  return(df_m)
+}
+```
+
+**Run the simulation using the function above. You may use similar values to those we used in the deterministic simulation; use the seed 124325 so that we will all get the same results for comparison. Assign your simulation to the name stochastic_sim_v30.**
+
+```{r}
+
+```
+
+**Plot results from stochastic_sim_1_v30 according to some reasonable plan.**
+
+```{r}
+
+```
+
+**If you have more time, discuss how the stochastic and deterministic simulations differ in this context. Also, are there any modifications you would consider making to the stochastic simulation based on other discussions we have had in the class?**
+
