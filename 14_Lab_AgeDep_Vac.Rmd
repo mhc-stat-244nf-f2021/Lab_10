@@ -113,7 +113,7 @@ SEIR_age_simulation <- function(S0, E0, I0, R0, RN, pD, D, b, v,
 }
 ```
 
-Before we dive implement this function and play with visualization, we need to consider what initial values we should consider. For example, as we saw in class, all of the initial compartment counts need to be specified in terms of vectors, which will give the numbers at the start of people in each compartment *of each age*, which is an extra layer of complexity from what we considered before. In order to come up with reasonable numbers, we can look up age demographics (from a census or other reliable source of information) about the area we are studying. For example, if we were interested in Massachusetts for some reason, we could look at: https://www.statista.com/statistics/1022328/massachusetts-population-share-age-group/ to get some information about age demographics.
+Before we dive implement this function and play with visualization, we need to consider what initial values we should consider. For example, as we saw in class, all of the initial compartment counts need to be specified in terms of vectors, which will give the numbers at the start of people in each compartment *of each age*, which is an extra layer of complexity from what we considered before. In order to come up with reasonable numbers, we can look up age demographics (from a census or other reliable source of information) about the area we are studying. For example, if we were interested in Massachusetts for some reason, we could look at: https://censusreporter.org/profiles/04000US25-massachusetts/ to get some information about age demographics.
 
 **Do you have any ideas about how we can translate this information into something meaningful in terms of initial values? We will take some time to think about this in small groups, and then we will implement any viable ideas together.**
 
@@ -124,7 +124,7 @@ Before we dive implement this function and play with visualization, we need to c
 **How would you go about determining the argument for maxAge? You can answer this either generally, or if you would like to consider a specific population, consider Massachusetts again.**
 
 
-**Run the function for the deterministic simulation, assuming the following: S0 is determined using one of our ideas above, E0 is a vector of 0's that is of length maxAge+1 (to account for newborns), I0 is a vector with a single 1 in it, and the rest are 0's (the placement is not that important given that we have homogeneous mixing in this model), time is 1500 (days), time_scale is 365 (we will run the simulation in terms of days). Also, assume a reproductive number of 7, a pre-infectious period of 6, an infectious period of 5 (days), and a vaccination rate of 30%. Assign this to the name `deterministic_sim_v30`.**
+**Run the function for the deterministic simulation, assuming the following: S0 is determined using one of our ideas above, E0 is a vector of 0's that is of length maxAge+1 (to account for newborns), I0 is a vector with a single 1 in it, and the rest are 0's (the placement is not that important given that we have homogeneous mixing in this model), time is 1500 (days), time_scale is 365 (we will run the simulation in terms of days). Also, assume a reproductive number of 7, a pre-infectious period of 6, an infectious period of 5 (days), and a vaccination rate of 30%. Determine birth rate using our previous scheme, where it depends on average life expectancy. Assign this to the name `deterministic_sim_v30`.**
 
 ```{r}
 
